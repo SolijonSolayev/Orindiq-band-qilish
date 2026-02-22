@@ -1,0 +1,1137 @@
+<!doctype html>
+<html lang="uz">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sugarland Theatres — Seat Booking (A11y + API + Timeout + Rollback)</title>
+  <style>
+    :root{
+      --bg:#0b0f19;
+      --text:#e5e7eb;
+      --muted:#9ca3af;
+      --line:rgba(255,255,255,.08);
+      --accent:#60a5fa;
+
+      --free:#22c55e;
+      --held:#f59e0b;
+      --taken:#ef4444;
+
+      --radius:18px;
+      --gap:14px;
+
+      --seat: 30px;
+      --seat-radius: 9px;
+      --seat-font: 11px;
+
+      --btn-pad: 12px 14px;
+      --btn-font: 14px;
+
+      --focus: 0 0 0 3px rgba(96,165,250,.35);
+
+      --toast-info-bg: rgba(96,165,250,.12);
+      --toast-info-br: rgba(96,165,250,.35);
+
+      --toast-ok-bg: rgba(34,197,94,.12);
+      --toast-ok-br: rgba(34,197,94,.35);
+
+      --toast-err-bg: rgba(239,68,68,.12);
+      --toast-err-br: rgba(239,68,68,.35);
+    }
+
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, "Apple Color Emoji","Segoe UI Emoji";
+      background: radial-gradient(1200px 800px at 20% 0%, rgba(96,165,250,.20), transparent 55%),
+                  radial-gradient(1200px 800px at 80% 20%, rgba(34,197,94,.16), transparent 60%),
+                  var(--bg);
+      color:var(--text);
+    }
+
+    .sr-only{
+      position:absolute !important;
+      width:1px;height:1px;
+      padding:0;margin:-1px;
+      overflow:hidden;clip:rect(0,0,0,0);
+      white-space:nowrap;border:0;
+    }
+
+    .app{
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 18px;
+      display: grid;
+      gap: var(--gap);
+      grid-template-columns: 1.6fr 1fr;
+      align-items: start;
+    }
+
+    header{
+      grid-column: 1 / -1;
+      display:flex;
+      gap:12px;
+      align-items:center;
+      justify-content:space-between;
+      padding: 14px 16px;
+      border: 1px solid var(--line);
+      background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02));
+      border-radius: var(--radius);
+      backdrop-filter: blur(10px);
+    }
+    .brand{display:flex;flex-direction:column;gap:2px}
+    .brand h1{font-size:16px;margin:0;letter-spacing:.2px}
+    .brand p{margin:0;font-size:12px;color:var(--muted)}
+
+    .top-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+    .pill{
+      display:flex;gap:10px;align-items:center;
+      padding:10px 12px;border:1px solid var(--line);
+      border-radius:999px;background:rgba(255,255,255,.03);
+      color:var(--muted);font-size:12px;
+    }
+
+    .btn{
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,.04);
+      color: var(--text);
+      padding: var(--btn-pad);
+      border-radius: 12px;
+      font-weight: 700;
+      font-size: var(--btn-font);
+      cursor:pointer;
+      transition: transform .08s ease, background .2s ease, border-color .2s ease;
+      user-select:none;
+    }
+    .btn:hover{ background: rgba(255,255,255,.06); border-color: rgba(255,255,255,.18); }
+    .btn:active{ transform: translateY(1px); }
+    .btn.primary{ background: rgba(96,165,250,.16); border-color: rgba(96,165,250,.35); }
+    .btn.danger{ background: rgba(239,68,68,.14); border-color: rgba(239,68,68,.30); }
+    .btn:disabled{ opacity:.55; cursor:not-allowed; transform:none; }
+    .btn:focus-visible{ outline:none; box-shadow: var(--focus); }
+
+    .card{
+      border: 1px solid var(--line);
+      background: linear-gradient(180deg, rgba(17,24,39,.75), rgba(15,23,42,.55));
+      border-radius: var(--radius);
+      overflow:hidden;
+    }
+    .card-header{
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--line);
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:10px;
+    }
+    .card-header h2{ margin:0; font-size:14px; letter-spacing:.2px; }
+    .card-header .sub{ font-size:12px; color: var(--muted); }
+    .card-body{ padding: 14px 16px; }
+
+    .legend{display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:12px;color:var(--muted)}
+    .dot{width:10px;height:10px;border-radius:999px;display:inline-block;margin-right:6px}
+
+    .stage{
+      margin: 6px 0 14px;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,.03);
+      border-radius: 999px;
+      padding: 10px 12px;
+      text-align:center;
+      font-size: 12px;
+      color: var(--muted);
+      letter-spacing:.4px;
+    }
+
+    .map-wrap{display:flex;flex-direction:column;gap:12px}
+    .grid{
+      display:grid;
+      gap: 8px;
+      align-items:center;
+      justify-content:center;
+      padding: 6px;
+      border-radius: 14px;
+      border: 1px dashed rgba(255,255,255,.10);
+      background: rgba(0,0,0,.18);
+      overflow:auto;
+      -webkit-overflow-scrolling: touch;
+      max-height: 520px;
+    }
+    /* Tab only to this grid container */
+    .grid:focus-visible{ outline:none; box-shadow: var(--focus); }
+
+    .row-label, .col-label{
+      font-size: 11px;
+      color: var(--muted);
+      opacity:.9;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      user-select:none;
+    }
+
+    .seat{
+      width: var(--seat);
+      height: var(--seat);
+      border-radius: var(--seat-radius);
+      border: 1px solid rgba(255,255,255,.10);
+      background: rgba(34,197,94,.18);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-size: var(--seat-font);
+      font-weight: 900;
+      color: rgba(255,255,255,.92);
+      cursor:pointer;
+      user-select:none;
+      transition: transform .08s ease, background .2s ease, border-color .2s ease, opacity .2s ease;
+    }
+    .seat:hover{ transform: translateY(-1px); border-color: rgba(255,255,255,.22); }
+    .seat.kbfocus{ box-shadow: var(--focus); }
+
+    .seat.taken{ background: rgba(239,68,68,.18); cursor:not-allowed; opacity:.65; }
+    .seat.held{ background: rgba(245,158,11,.18); border-color: rgba(245,158,11,.45); }
+    .seat.selected{ background: rgba(96,165,250,.22); border-color: rgba(96,165,250,.55); }
+    .seat.pending{ opacity:.55; pointer-events:none; filter: saturate(.7); }
+
+    .hint{font-size:12px;color:var(--muted);line-height:1.35}
+
+    .summary{display:flex;flex-direction:column;gap:10px}
+    .kv{
+      display:grid;grid-template-columns: 1fr auto;gap:10px;
+      font-size:13px;padding:10px 12px;border-radius:14px;
+      border:1px solid var(--line);background:rgba(255,255,255,.03);
+    }
+    .kv span{ color: var(--muted); }
+    .big{ font-size: 18px; font-weight: 950; letter-spacing:.2px; }
+
+    .chips{ display:flex; gap:8px; flex-wrap:wrap; padding-top:4px; }
+    .chip{
+      padding: 8px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,.10);
+      background: rgba(255,255,255,.03);
+      font-size: 12px;
+      font-weight: 900;
+      display:flex;
+      gap:8px;
+      align-items:center;
+    }
+    .chip button{
+      background: transparent;border:none;color:var(--muted);
+      cursor:pointer;font-weight: 900;padding:0 2px;
+    }
+    .chip button:hover{ color: var(--text); }
+
+    .footer-actions{ display:flex; gap:10px; flex-wrap:wrap; padding-top:6px; }
+
+    .sector-grid{
+      display:none;
+      gap: 12px;
+      grid-template-columns: 1fr 1fr;
+      padding: 8px;
+    }
+    .sector{
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,.03);
+      border-radius: 16px;
+      padding: 14px;
+      cursor:pointer;
+      transition: transform .08s ease, border-color .2s ease, background .2s ease;
+      min-height: 92px;
+      display:flex;
+      flex-direction:column;
+      justify-content:space-between;
+      font: inherit;
+      color: inherit;
+    }
+    .sector:hover{ transform: translateY(-1px); border-color: rgba(255,255,255,.18); background: rgba(255,255,255,.05); }
+    .sector .name{ font-weight: 1000; font-size: 16px; letter-spacing:.3px; }
+    .sector .meta{ font-size: 12px; color: var(--muted); display:flex; justify-content:space-between; gap:10px; }
+
+    .backbar{
+      display:none;
+      gap:10px;
+      align-items:center;
+      justify-content:space-between;
+      margin-bottom: 10px;
+    }
+    .backbar .title{ font-weight: 950; letter-spacing:.2px; }
+
+    .bottom-sheet{
+      display:none;
+      position: sticky;
+      bottom: 0;
+      margin-top: 12px;
+      border-top: 1px solid var(--line);
+      background: linear-gradient(180deg, rgba(11,15,25,.35), rgba(11,15,25,.85));
+      backdrop-filter: blur(14px);
+      padding: 12px 12px 14px;
+      border-radius: 18px 18px 0 0;
+    }
+    .bottom-sheet .row{ display:flex; justify-content:space-between; align-items:center; gap:10px; }
+    .bottom-sheet .row .small{ color: var(--muted); font-size: 12px; }
+    .bottom-sheet .row .count{ font-weight: 1000; }
+
+    .toast{
+      padding:10px 12px;
+      border-radius: 14px;
+      border:1px solid var(--line);
+      background: rgba(255,255,255,.03);
+      font-size:12px;
+      color: var(--muted);
+    }
+    .toast.info{ background: var(--toast-info-bg); border-color: var(--toast-info-br); color: rgba(229,231,235,.95); }
+    .toast.success{ background: var(--toast-ok-bg); border-color: var(--toast-ok-br); color: rgba(229,231,235,.95); }
+    .toast.error{ background: var(--toast-err-bg); border-color: var(--toast-err-br); color: rgba(229,231,235,.95); }
+
+    @media (max-width: 980px){
+      .app{ grid-template-columns: 1fr; }
+    }
+    @media (max-width: 820px){
+      :root{
+        --seat: 34px; --seat-radius: 10px; --seat-font: 12px;
+        --btn-pad: 14px 16px; --btn-font: 15px;
+      }
+      .grid{ max-height: 520px; }
+    }
+    @media (max-width: 520px){
+      :root{
+        --seat: 44px; --seat-radius: 12px; --seat-font: 13px;
+        --btn-pad: 14px 16px; --btn-font: 15px;
+      }
+      .top-actions .pill{ display:none; }
+      .grid{ max-height: 420px; padding: 8px; }
+      .sector-grid{ display:grid; }
+      .backbar{ display:flex; }
+      .bottom-sheet{ display:block; }
+      .right-panel{ display:none; }
+    }
+    @media (max-width: 360px){
+      .sector-grid{ grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div class="brand">
+        <h1>🎟️ Sugarland Theatres — Seat Booking</h1>
+        <p>Tab → grid | Arrow keys | Announce tones | Hold timeout | Optimistic rollback</p>
+      </div>
+      <div class="top-actions">
+        <div class="pill" id="deviceHint">Device: —</div>
+        <button class="btn danger" id="clearBtn">🧹 Clear</button>
+        <button class="btn primary" id="checkoutBtn" disabled>✅ Continue</button>
+      </div>
+    </header>
+
+    <section class="card">
+      <div class="card-header">
+        <div>
+          <h2>O‘rindiqlar xaritasi</h2>
+          <div class="sub" id="modeLabel">Rejim: Full seat map</div>
+        </div>
+        <div class="legend" aria-label="Legend">
+          <span><i class="dot" style="background:rgba(34,197,94,.9)"></i>Mavjud</span>
+          <span><i class="dot" style="background:rgba(96,165,250,.9)"></i>Tanlangan</span>
+          <span><i class="dot" style="background:rgba(245,158,11,.9)"></i>Band qilinmoqda</span>
+          <span><i class="dot" style="background:rgba(239,68,68,.9)"></i>Band</span>
+        </div>
+      </div>
+
+      <div class="card-body">
+        <div class="stage" aria-label="Screen position">SAHNA / SCREEN</div>
+
+        <div id="live" class="sr-only" aria-live="polite" aria-atomic="true"></div>
+
+        <div class="backbar" id="backbar">
+          <button class="btn" id="backBtn">⬅️ Sektorlar</button>
+          <div class="title" id="sectorTitle">Sektor: —</div>
+        </div>
+
+        <div class="sector-grid" id="sectorGrid" role="list" aria-label="Sektorlar ro‘yxati"></div>
+
+        <div class="map-wrap" id="mapWrap">
+          <div class="hint">
+            Tab faqat gridga kiradi. Grid ichida: ←↑→↓ yurish, Enter/Space tanlash, Esc (mobil sektordan chiqish).
+          </div>
+
+          <div class="grid" id="seatGrid" role="grid" aria-label="O‘rindiqlar panjarasi" tabindex="0"></div>
+
+          <div class="toast info" id="statusToast" aria-live="polite">
+            Info: ready ✅
+          </div>
+        </div>
+
+        <div class="bottom-sheet" id="bottomSheet">
+          <div class="row">
+            <div>
+              <div class="small">Tanlanganlar</div>
+              <div class="count"><span id="mSelectedCount">0</span> ta</div>
+            </div>
+            <button class="btn primary" id="mCheckoutBtn" disabled>✅ Continue</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <aside class="card right-panel">
+      <div class="card-header">
+        <div>
+          <h2>Tanlangan o‘rindiqlar</h2>
+          <div class="sub">Prototip — DB keyin ulanadi</div>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="summary">
+          <div class="kv">
+            <div><strong>Seans</strong><br><span>Bugun • 19:30 • Hall 2</span></div>
+            <div style="text-align:right"><span>Price</span><div class="big" id="priceOut">$0</div></div>
+          </div>
+
+          <div class="kv">
+            <div><strong>Tanlanganlar</strong><br><span>Seat IDs ro‘yxati</span></div>
+            <div style="text-align:right"><span>Count</span><div class="big" id="countOut">0</div></div>
+          </div>
+
+          <div class="chips" id="chips" aria-label="Tanlangan o‘rindiqlar ro‘yxati"></div>
+
+          <div class="footer-actions">
+            <button class="btn danger" id="clearBtn2">🧹 Clear</button>
+            <button class="btn primary" id="checkoutBtn2" disabled>✅ Continue</button>
+          </div>
+
+          <div class="hint">
+            Hold timeout: 2 daqiqadan keyin tanlangan seat avtomatik bo‘shaydi. Optimistic UI: darrov ko‘rsatadi, API rad etsa rollback.
+          </div>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <script>
+    // =========================================================
+    // Fake API layer
+    // =========================================================
+    const api = (() => {
+      const server = {
+        showId: "show_2026_02_23_1930",
+        rows: 10,
+        cols: 14,
+        seats: new Map(),
+        holds: new Map(),
+      };
+
+      const latency = (min=120, max=420) =>
+        new Promise(res => setTimeout(res, Math.floor(Math.random()*(max-min+1))+min));
+
+      function init(){
+        server.seats.clear();
+        server.holds.clear();
+        for (let r=0; r<server.rows; r++){
+          for (let c=0; c<server.cols; c++){
+            const id = seatId(r,c);
+            server.seats.set(id, "free");
+          }
+        }
+        const total = server.rows * server.cols;
+        let takenCount = Math.floor(total * 0.22);
+        while (takenCount > 0){
+          const id = seatId(Math.floor(Math.random()*server.rows), Math.floor(Math.random()*server.cols));
+          if (server.seats.get(id) === "free"){
+            server.seats.set(id, "taken");
+            takenCount--;
+          }
+        }
+        let heldCount = Math.floor(total * 0.06);
+        while (heldCount > 0){
+          const id = seatId(Math.floor(Math.random()*server.rows), Math.floor(Math.random()*server.cols));
+          if (server.seats.get(id) === "free"){
+            server.seats.set(id, "held");
+            server.holds.set(id, "other_user");
+            heldCount--;
+          }
+        }
+      }
+
+      return {
+        init,
+
+        async fetchSeatMap({ showId }){
+          await latency();
+          if (showId !== server.showId) throw new Error("Show not found");
+          return {
+            showId: server.showId,
+            rows: server.rows,
+            cols: server.cols,
+            seats: Array.from(server.seats.entries()).map(([seatId, status]) => ({ seatId, status }))
+          };
+        },
+
+        async holdSeat({ seatId, clientId }){
+          await latency();
+          const s = server.seats.get(seatId);
+          if (!s) throw new Error("Seat not found");
+
+          const chaos = Math.random() < 0.06;
+          if (chaos) return { ok:false, reason:"conflict" };
+
+          if (s === "taken" || s === "reserved") return { ok:false, reason:"unavailable" };
+          if (s === "held" && server.holds.get(seatId) !== clientId) return { ok:false, reason:"held_by_other" };
+
+          server.seats.set(seatId, "held");
+          server.holds.set(seatId, clientId);
+          return { ok:true };
+        },
+
+        async releaseSeat({ seatId, clientId }){
+          await latency();
+          const s = server.seats.get(seatId);
+          if (!s) throw new Error("Seat not found");
+          if (s !== "held") return { ok:true };
+          if (server.holds.get(seatId) !== clientId) return { ok:false, reason:"not_owner" };
+
+          server.seats.set(seatId, "free");
+          server.holds.delete(seatId);
+          return { ok:true };
+        },
+
+        async reserveSeats({ seatIds, clientId }){
+          await latency(220, 520);
+          for (const id of seatIds){
+            const s = server.seats.get(id);
+            if (!s) return { ok:false, reason:"seat_not_found", seatId:id };
+            if (s === "taken" || s === "reserved") return { ok:false, reason:"unavailable", seatId:id };
+            if (s === "held" && server.holds.get(id) !== clientId) return { ok:false, reason:"held_by_other", seatId:id };
+          }
+          for (const id of seatIds){
+            server.seats.set(id, "reserved");
+            server.holds.delete(id);
+          }
+          return { ok:true, reservationId: "rsv_" + Math.random().toString(16).slice(2,10) };
+        }
+      };
+    })();
+
+    // -----------------------------
+    // UI state
+    // -----------------------------
+    const PRICE_PER_SEAT = 6.50;
+    const SHOW_ID = "show_2026_02_23_1930";
+    const CLIENT_ID = "client_demo_" + Math.random().toString(16).slice(2,8);
+
+    const ROWS = 10;
+    const COLS = 14;
+    const AISLE_AFTER_COL = 7;
+
+    const HOLD_TTL_MS = 2 * 60 * 1000; // 2 minutes
+
+    let seatState = new Map();
+    let selected = new Set();
+    let pending = new Set();
+
+    const holdTimers = new Map();
+    const holdExpiresAt = new Map();
+
+    let focusSeatId = null;
+
+    let currentSector = null;
+    let isMobile = false;
+
+    const $ = (id) => document.getElementById(id);
+
+    function rowName(rIndex){ return String.fromCharCode("A".charCodeAt(0) + rIndex); }
+    function seatId(rIndex, cIndex){ return `${rowName(rIndex)}-${cIndex+1}`; }
+    function parseSeat(seatIdStr){
+      const [rL, cS] = seatIdStr.split("-");
+      return { r: rL.charCodeAt(0) - "A".charCodeAt(0), c: parseInt(cS,10)-1 };
+    }
+    function formatMoney(n){ return n.toLocaleString(undefined, { style:"currency", currency:"USD" }); }
+
+    function sectorFor(r, c){
+      const top = r < Math.floor(ROWS/2);
+      const left = c < AISLE_AFTER_COL;
+      if (top && left) return "A";
+      if (top && !left) return "B";
+      if (!top && left) return "C";
+      return "D";
+    }
+    function isSeatVisible(r,c){
+      if (!isMobile || !currentSector) return true;
+      return sectorFor(r,c) === currentSector;
+    }
+
+    // -----------------------------
+    // Announce tones
+    // -----------------------------
+    let toastTimer = null;
+    function announce(msg, tone="info"){
+      $("live").textContent = msg;
+
+      const t = $("statusToast");
+      t.classList.remove("info","success","error");
+      t.classList.add(tone);
+      const prefix = tone === "success" ? "Success" : tone === "error" ? "Error" : "Info";
+      t.textContent = `${prefix}: ${msg}`;
+
+      if (toastTimer) clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => {
+        t.classList.remove("success","error");
+        t.classList.add("info");
+      }, 2500);
+    }
+
+    function deviceMode(){
+      const w = window.innerWidth;
+      isMobile = w <= 520;
+      $("deviceHint").textContent = `Device: ${isMobile ? "Mobile" : (w <= 980 ? "Tablet" : "Desktop")}`;
+      $("modeLabel").textContent = `Rejim: ${isMobile ? (currentSector ? "Sector zoom" : "Sector overview") : "Full seat map"}`;
+    }
+
+    // -----------------------------
+    // Load
+    // -----------------------------
+    async function loadFromApi(){
+      announce("Seat map yuklanmoqda…", "info");
+      const data = await api.fetchSeatMap({ showId: SHOW_ID });
+
+      seatState.clear();
+      selected.clear();
+      pending.clear();
+      clearAllHoldTimers();
+
+      for (const { seatId, status } of data.seats){
+        if (status === "free") seatState.set(seatId, "free");
+        else if (status === "taken" || status === "reserved") seatState.set(seatId, "taken");
+        else if (status === "held") seatState.set(seatId, "held");
+      }
+      announce("Ready ✅", "success");
+    }
+
+    // -----------------------------
+    // Hold timeout
+    // -----------------------------
+    function clearAllHoldTimers(){
+      for (const [id, tid] of holdTimers.entries()){
+        clearTimeout(tid);
+        holdTimers.delete(id);
+      }
+      holdExpiresAt.clear();
+    }
+
+    function disarmHoldTimeout(id){
+      if (holdTimers.has(id)){
+        clearTimeout(holdTimers.get(id));
+        holdTimers.delete(id);
+      }
+      holdExpiresAt.delete(id);
+    }
+
+    function armHoldTimeout(id){
+      disarmHoldTimeout(id);
+      const expires = Date.now() + HOLD_TTL_MS;
+      holdExpiresAt.set(id, expires);
+
+      const tid = setTimeout(async () => {
+        if (!selected.has(id)) return;
+        announce(`Hold timeout: ${id} bo‘shatilyapti…`, "info");
+        await forceRelease(id, "timeout");
+      }, HOLD_TTL_MS);
+
+      holdTimers.set(id, tid);
+    }
+
+    async function forceRelease(id, reason="manual"){
+      if (pending.has(id)) return;
+
+      const prev = seatState.get(id);
+      pending.add(id);
+
+      seatState.set(id, "free");
+      selected.delete(id);
+      disarmHoldTimeout(id);
+
+      renderSeatGrid();
+      updateUI();
+
+      try{
+        const res = await api.releaseSeat({ seatId: id, clientId: CLIENT_ID });
+        if (!res.ok){
+          seatState.set(id, prev);
+          if (prev === "selected") {
+            selected.add(id);
+            armHoldTimeout(id);
+          }
+          announce(`Release failed: ${id} (${res.reason})`, "error");
+        } else {
+          announce(reason === "timeout" ? `Timeout: ${id} bo‘shatildi.` : `Released: ${id}`, "info");
+        }
+      } catch(e){
+        console.error(e);
+        seatState.set(id, prev);
+        if (prev === "selected") {
+          selected.add(id);
+          armHoldTimeout(id);
+        }
+        announce(`Release error: ${id}`, "error");
+      } finally {
+        pending.delete(id);
+        renderSeatGrid();
+        updateUI();
+      }
+    }
+
+    // -----------------------------
+    // Optimistic UI + rollback
+    // -----------------------------
+    async function toggleSeat(id){
+      const status = seatState.get(id);
+      if (pending.has(id)) return;
+
+      if (status === "taken"){
+        announce(`O‘rindiq ${id} band.`, "error");
+        return;
+      }
+      if (status === "held" && !selected.has(id)){
+        announce(`O‘rindiq ${id} vaqtincha band qilinmoqda.`, "error");
+        return;
+      }
+
+      pending.add(id);
+      const prevStatus = status;
+      const wasSelected = selected.has(id);
+
+      if (wasSelected){
+        seatState.set(id, "free");
+        selected.delete(id);
+        disarmHoldTimeout(id);
+        announce(`Release: ${id}…`, "info");
+      } else {
+        seatState.set(id, "selected");
+        selected.add(id);
+        armHoldTimeout(id);
+        announce(`Hold: ${id}…`, "info");
+      }
+
+      renderSeatGrid();
+      updateUI();
+
+      try{
+        if (wasSelected){
+          const res = await api.releaseSeat({ seatId: id, clientId: CLIENT_ID });
+          if (!res.ok){
+            seatState.set(id, prevStatus);
+            if (prevStatus === "selected") {
+              selected.add(id);
+              armHoldTimeout(id);
+            }
+            announce(`Release rad etildi: ${id} (${res.reason})`, "error");
+          } else {
+            announce(`Bo‘shatildi: ${id}`, "success");
+          }
+        } else {
+          const res = await api.holdSeat({ seatId: id, clientId: CLIENT_ID });
+          if (!res.ok){
+            seatState.set(id, prevStatus);
+            selected.delete(id);
+            disarmHoldTimeout(id);
+
+            const reason = res.reason || "error";
+            const msg =
+              reason === "held_by_other" ? "boshqa user ushlab turgan"
+              : reason === "unavailable" ? "band"
+              : reason === "conflict" ? "konflikt (race condition)"
+              : reason;
+
+            announce(`Tanlanmadi: ${id} — ${msg}`, "error");
+          } else {
+            announce(`Tanlandi: ${id}`, "success");
+          }
+        }
+      } catch(e){
+        console.error(e);
+        seatState.set(id, prevStatus);
+        if (wasSelected){
+          selected.add(id);
+          seatState.set(id, "selected");
+          armHoldTimeout(id);
+        } else {
+          selected.delete(id);
+          disarmHoldTimeout(id);
+        }
+        announce(`Network error. Rollback qilindi: ${id}`, "error");
+      } finally {
+        pending.delete(id);
+        renderSeatGrid();
+        updateUI();
+      }
+    }
+
+    // -----------------------------
+    // Clear + Checkout
+    // -----------------------------
+    async function clearSelection(){
+      if (selected.size === 0) return;
+      const ids = [...selected];
+
+      ids.forEach(id => {
+        seatState.set(id, "free");
+        disarmHoldTimeout(id);
+      });
+      selected.clear();
+      announce("Tozalanmoqda…", "info");
+      renderSeatGrid();
+      updateUI();
+
+      for (const id of ids){
+        try{ await api.releaseSeat({ seatId: id, clientId: CLIENT_ID }); } catch(e){ console.error(e); }
+      }
+      announce("Tanlanganlar tozalandi.", "success");
+    }
+
+    async function checkout(){
+      if (selected.size === 0) return;
+      if (pending.size > 0) return;
+
+      const seatIds = [...selected].sort();
+      announce("Bron qilinmoqda…", "info");
+
+      seatIds.forEach(id => pending.add(id));
+      renderSeatGrid();
+      updateUI();
+
+      try{
+        const res = await api.reserveSeats({ seatIds, clientId: CLIENT_ID });
+        if (!res.ok){
+          announce(`Bron xato: ${res.reason}`, "error");
+        } else {
+          seatIds.forEach(id => {
+            seatState.set(id, "taken");
+            disarmHoldTimeout(id);
+          });
+          selected.clear();
+          announce(`Bron qilindi ✅ (${res.reservationId})`, "success");
+          alert(`Reserved ✅\nSeats: ${seatIds.join(", ")}\nReservation: ${res.reservationId}`);
+        }
+      } catch(e){
+        console.error(e);
+        announce("Bron network error.", "error");
+      } finally {
+        seatIds.forEach(id => pending.delete(id));
+        renderSeatGrid();
+        updateUI();
+      }
+    }
+
+    // -----------------------------
+    // Sectors
+    // -----------------------------
+    function sectorStats(key){
+      let free=0, taken=0, held=0;
+      for (let r=0; r<ROWS; r++){
+        for (let c=0; c<COLS; c++){
+          if (sectorFor(r,c) !== key) continue;
+          const id = seatId(r,c);
+          const s = seatState.get(id);
+          if (s === "free") free++;
+          else if (s === "taken") taken++;
+          else if (s === "held") held++;
+        }
+      }
+      return { free, taken, held };
+    }
+
+    function renderSectors(){
+      const sg = $("sectorGrid");
+      sg.innerHTML = "";
+      const keys = ["A","B","C","D"];
+
+      for (const key of keys){
+        const st = sectorStats(key);
+        const el = document.createElement("button");
+        el.type = "button";
+        el.className = "sector";
+        el.setAttribute("role","listitem");
+        el.setAttribute("aria-label", `Sektor ${key}. Mavjud ${st.free}. Band ${st.taken}.`);
+        el.innerHTML = `
+          <div class="name">${key}</div>
+          <div class="meta">
+            <span>Mavjud: <b>${st.free}</b></span>
+            <span>Band: <b>${st.taken}</b></span>
+          </div>
+        `;
+        el.addEventListener("click", () => openSector(key));
+        sg.appendChild(el);
+      }
+    }
+
+    function openSector(key){
+      currentSector = key;
+      $("sectorTitle").textContent = `Sektor: ${key}`;
+      $("backbar").style.display = "flex";
+      announce(`Sektor ${key} ochildi.`, "info");
+      renderSeatGrid();
+      updateUI();
+      $("seatGrid").focus();
+    }
+
+    function closeSector(){
+      currentSector = null;
+      $("sectorTitle").textContent = "Sektor: —";
+      $("backbar").style.display = "none";
+      announce("Sektorlar ro‘yxatiga qaytildi.", "info");
+      renderSeatGrid();
+      updateUI();
+    }
+
+    // -----------------------------
+    // Grid render + keyboard focus
+    // -----------------------------
+    function renderSeatGrid(){
+      const grid = $("seatGrid");
+      grid.innerHTML = "";
+
+      if (isMobile && !currentSector){
+        $("mapWrap").style.display = "none";
+        return;
+      } else {
+        $("mapWrap").style.display = "flex";
+      }
+
+      const totalColumns = 1 + COLS + 1;
+      grid.style.gridTemplateColumns = `repeat(${totalColumns}, minmax(0, auto))`;
+
+      grid.appendChild(makeCell("", "col-label"));
+      for (let c=0; c<COLS; c++){
+        if (c === AISLE_AFTER_COL) grid.appendChild(makeSpacer());
+        grid.appendChild(makeCell(String(c+1), "col-label"));
+      }
+
+      let firstVisibleSeat = null;
+
+      for (let r=0; r<ROWS; r++){
+        grid.appendChild(makeCell(rowName(r), "row-label"));
+
+        for (let c=0; c<COLS; c++){
+          if (c === AISLE_AFTER_COL) grid.appendChild(makeSpacer());
+
+          if (!isSeatVisible(r,c)){
+            const empty = document.createElement("div");
+            empty.style.width = "var(--seat)";
+            empty.style.height = "var(--seat)";
+            empty.style.opacity = "0";
+            grid.appendChild(empty);
+            continue;
+          }
+
+          const id = seatId(r,c);
+          const status = seatState.get(id) || "free";
+
+          const seat = document.createElement("div");
+          seat.className = "seat";
+          seat.dataset.seatId = id;
+          seat.title = id;
+
+          const isDisabled = (status === "taken" || status === "held") && !selected.has(id);
+          const srStatus = status === "free" ? "mavjud"
+                        : status === "taken" ? "band"
+                        : status === "held" ? "band qilinmoqda"
+                        : status === "selected" ? "tanlangan"
+                        : status;
+          seat.setAttribute("role", "gridcell");
+          seat.setAttribute("aria-label", `O‘rindiq ${id}. Holat: ${srStatus}.`);
+          seat.setAttribute("aria-selected", selected.has(id) ? "true" : "false");
+          seat.setAttribute("aria-disabled", isDisabled ? "true" : "false");
+
+          if (status === "taken") seat.classList.add("taken");
+          if (status === "held") seat.classList.add("held");
+          if (status === "selected") seat.classList.add("selected");
+          if (pending.has(id)) seat.classList.add("pending");
+
+          seat.addEventListener("click", () => toggleSeat(id));
+
+          if (!firstVisibleSeat) firstVisibleSeat = id;
+
+          grid.appendChild(seat);
+        }
+      }
+
+      if (!focusSeatId || !document.querySelector(`[data-seat-id="${CSS.escape(focusSeatId)}"]`)){
+        focusSeatId = firstVisibleSeat;
+      }
+      paintKeyboardFocus();
+    }
+
+    function makeCell(text, cls){
+      const d = document.createElement("div");
+      d.className = cls;
+      d.textContent = text;
+      d.setAttribute("role","presentation");
+      return d;
+    }
+    function makeSpacer(){
+      const s = document.createElement("div");
+      s.style.width = "14px";
+      s.style.height = "var(--seat)";
+      s.style.opacity = ".25";
+      s.setAttribute("role","presentation");
+      return s;
+    }
+
+    function paintKeyboardFocus(){
+      document.querySelectorAll(".seat.kbfocus").forEach(el => el.classList.remove("kbfocus"));
+      if (!focusSeatId) return;
+      const el = document.querySelector(`[data-seat-id="${CSS.escape(focusSeatId)}"]`);
+      if (el){
+        el.classList.add("kbfocus");
+        el.scrollIntoView({ block:"nearest", inline:"nearest" });
+      }
+    }
+
+    function moveFocusArrow(key){
+      if (!focusSeatId) return;
+      const { r, c } = parseSeat(focusSeatId);
+
+      let nr=r, nc=c;
+      if (key === "ArrowUp") nr = Math.max(0, r-1);
+      if (key === "ArrowDown") nr = Math.min(ROWS-1, r+1);
+      if (key === "ArrowLeft") nc = Math.max(0, c-1);
+      if (key === "ArrowRight") nc = Math.max(0, c+1);
+
+      nc = Math.min(COLS-1, nc);
+
+      let guard = 0;
+      while (!isSeatVisible(nr,nc) && guard++ < 60){
+        if (currentSector === "A" || currentSector === "C") nc = Math.max(0, nc-1);
+        else nc = Math.min(COLS-1, nc+1);
+      }
+
+      focusSeatId = seatId(nr,nc);
+      paintKeyboardFocus();
+    }
+
+    function onGridKeydown(e){
+      if (["ArrowUp","ArrowDown","ArrowLeft","ArrowRight"].includes(e.key)){
+        e.preventDefault();
+        moveFocusArrow(e.key);
+        return;
+      }
+      if (e.key === "Enter" || e.key === " "){
+        e.preventDefault();
+        if (focusSeatId) toggleSeat(focusSeatId);
+        return;
+      }
+      if (e.key === "Escape"){
+        if (isMobile && currentSector){
+          e.preventDefault();
+          closeSector();
+        }
+      }
+    }
+
+    // -----------------------------
+    // UI update
+    // -----------------------------
+    function updateUI(){
+      deviceMode();
+
+      const count = selected.size;
+      const totalPrice = count * PRICE_PER_SEAT;
+
+      $("countOut").textContent = count;
+      $("priceOut").textContent = formatMoney(totalPrice);
+      $("mSelectedCount").textContent = count;
+
+      const disableCheckout = count === 0 || pending.size > 0;
+      $("checkoutBtn").disabled = disableCheckout;
+      $("checkoutBtn2").disabled = disableCheckout;
+      $("mCheckoutBtn").disabled = disableCheckout;
+
+      const chips = $("chips");
+      chips.innerHTML = "";
+      [...selected].sort().forEach(id => {
+        let remain = "";
+        if (holdExpiresAt.has(id)){
+          const ms = Math.max(0, holdExpiresAt.get(id) - Date.now());
+          const sec = Math.floor(ms/1000);
+          const mm = String(Math.floor(sec/60)).padStart(2,"0");
+          const ss = String(sec%60).padStart(2,"0");
+          remain = ` • ${mm}:${ss}`;
+        }
+
+        const chip = document.createElement("div");
+        chip.className = "chip";
+        chip.innerHTML = `<span>${id}${remain}</span><button aria-label="Remove ${id}">×</button>`;
+        chip.querySelector("button").addEventListener("click", () => toggleSeat(id));
+        chips.appendChild(chip);
+      });
+
+      if (isMobile){
+        $("sectorGrid").style.display = currentSector ? "none" : "grid";
+        $("backbar").style.display = currentSector ? "flex" : "none";
+      } else {
+        $("sectorGrid").style.display = "none";
+        $("backbar").style.display = "none";
+      }
+
+      renderSectors();
+    }
+
+    setInterval(() => {
+      if (selected.size === 0) return;
+      updateUI();
+    }, 1000);
+
+    // -----------------------------
+    // Init
+    // -----------------------------
+    async function init(){
+      api.init();
+      deviceMode();
+
+      await loadFromApi();
+      renderSectors();
+      renderSeatGrid();
+      updateUI();
+
+      $("seatGrid").addEventListener("keydown", onGridKeydown);
+
+      $("clearBtn").addEventListener("click", clearSelection);
+      $("clearBtn2").addEventListener("click", clearSelection);
+
+      $("backBtn").addEventListener("click", closeSector);
+
+      $("checkoutBtn").addEventListener("click", checkout);
+      $("checkoutBtn2").addEventListener("click", checkout);
+      $("mCheckoutBtn").addEventListener("click", checkout);
+
+      window.addEventListener("resize", () => {
+        const wasMobile = isMobile;
+        deviceMode();
+        if (!wasMobile && isMobile) currentSector = null;
+        if (wasMobile && !isMobile) currentSector = null;
+        renderSectors();
+        renderSeatGrid();
+        updateUI();
+      });
+
+      $("seatGrid").addEventListener("focus", () => {
+        if (!focusSeatId){
+          for (let r=0; r<ROWS; r++){
+            for (let c=0; c<COLS; c++){
+              if (isSeatVisible(r,c)){
+                focusSeatId = seatId(r,c);
+                paintKeyboardFocus();
+                return;
+              }
+            }
+          }
+        }
+        paintKeyboardFocus();
+      });
+    }
+
+    init();
+  </script>
+</body>
+</html>
