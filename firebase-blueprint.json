@@ -1,0 +1,65 @@
+{
+  "entities": {
+    "Show": {
+      "title": "Show",
+      "description": "Movie or theatre screening session",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "maxLength": 100 },
+        "hall": { "type": "string", "maxLength": 50 },
+        "time": { "type": "string", "maxLength": 30 },
+        "price": { "type": "number" },
+        "rows": { "type": "number" },
+        "cols": { "type": "number" }
+      },
+      "required": ["title", "hall", "time", "price", "rows", "cols"]
+    },
+    "Seat": {
+      "title": "Seat",
+      "description": "Individual seat status within a screening",
+      "type": "object",
+      "properties": {
+        "seatId": { "type": "string", "maxLength": 10 },
+        "row": { "type": "string", "maxLength": 5 },
+        "col": { "type": "number" },
+        "tier": { "type": "string", "enum": ["standard", "vip", "accessible"], "maxLength": 20 },
+        "status": { "type": "string", "enum": ["free", "held", "reserved"], "maxLength": 20 },
+        "heldBy": { "type": "string", "maxLength": 128 },
+        "heldExpiresAt": { "type": "number" },
+        "reservedBy": { "type": "string", "maxLength": 128 },
+        "updatedAt": { "type": "number" }
+      },
+      "required": ["seatId", "row", "col", "tier", "status"]
+    },
+    "Reservation": {
+      "title": "Reservation",
+      "description": "Confirmed booking reservation made by a user",
+      "type": "object",
+      "properties": {
+        "reservationId": { "type": "string", "maxLength": 64 },
+        "showId": { "type": "string", "maxLength": 64 },
+        "userId": { "type": "string", "maxLength": 128 },
+        "userEmail": { "type": "string", "maxLength": 128 },
+        "seatIds": { "type": "array" },
+        "totalPrice": { "type": "number" },
+        "status": { "type": "string", "enum": ["confirmed", "cancelled"], "maxLength": 20 },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["reservationId", "showId", "userId", "seatIds", "totalPrice", "status", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/shows/{showId}": {
+      "schema": { "$ref": "#/entities/Show" },
+      "description": "Information about theatrical screenings"
+    },
+    "/shows/{showId}/seats/{seatId}": {
+      "schema": { "$ref": "#/entities/Seat" },
+      "description": "Real-time state and ownership of individual seats"
+    },
+    "/reservations/{reservationId}": {
+      "schema": { "$ref": "#/entities/Reservation" },
+      "description": "Completed seat booking records"
+    }
+  }
+}

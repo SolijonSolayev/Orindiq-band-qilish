@@ -1,0 +1,23 @@
+[
+  {
+    "reservationId": "SUGAR-592789",
+    "showId": "show_2026_02_23_1930",
+    "userId": "9t8FXUpx2zVVrx95oIOvAlZ7Vag2",
+    "userName": "Solijon Solayev",
+    "userPhone": "+998 90 123 45 67",
+    "userEmail": "solijonsolayev2003@gmail.com",
+    "seatIds": [
+      "A-8"
+    ],
+    "totalPrice": 6.5,
+    "paymentMethod": "card",
+    "status": "confirmed",
+    "createdAt": 1788697282965,
+    "showDetails": {
+      "title": "Avatar: Suv yo‘li",
+      "hall": "Hall 1 (Dolby Cinema)",
+      "time": "Bugun, 19:30",
+      "theater": "Sugarland Theatres (Amir Temur 107B)"
+    }
+  }
+]

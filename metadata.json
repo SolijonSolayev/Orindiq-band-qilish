@@ -1,0 +1,6 @@
+{
+  "name": "Sugarland Theatres — Seat Booking",
+  "description": "Sugarland Theatres kinoteatri o‘rindiqlarini real vaqtda bron qilish tizimi va Sugarland AI konsyerji",
+  "requestFramePermissions": ["geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
