@@ -490,26 +490,6 @@ This typically indicates that your device does not have a healthy Internet conne
     `;let t=Q("googleSignInBtn");t&&t.addEventListener("click",async()=>{try{await Af(),Ne("Google orqali kirdingiz \u2705","success")}catch(r){console.error(r),Ne("Kirish bekor qilindi yoki xatolik yuz berdi","error")}})}}async function oA(){Jf(),window.addEventListener("resize",Jf);let n=Q("seatGrid");n&&n.addEventListener("keydown",nA);let e=Q("backBtn");e&&e.addEventListener("click",By);let t=Q("openLocationModalBtn");t&&t.addEventListener("click",fy);let r=Q("headerMyTicketsBtn");r&&r.addEventListener("click",Hf);let s=Q("sideMyTicketsBtn");s&&s.addEventListener("click",Hf);let i=Q("mMyTicketsBtn");i&&i.addEventListener("click",Hf);let a=Q("clearBtn");a&&a.addEventListener("click",iy);let c=Q("clearBtn2");c&&c.addEventListener("click",iy);let u=Q("checkoutBtn");u&&u.addEventListener("click",Uf);let l=Q("checkoutBtn2");l&&l.addEventListener("click",Uf);let h=Q("mCheckoutBtn");h&&h.addEventListener("click",Uf),Ta();try{(await ey()).forEach(y=>{ht.set(y,"taken")}),qt(),Ot()}catch(w){console.warn("Initial server seats fetch note:",w)}Ne("Firebase Firestore bilan bog\u2018lanmoqda\u2026","info");let f=await W_(),g=Q("firestoreStatusBadge");g&&(f?g.innerHTML='<span style="display:inline-block;width:8px;height:8px;background:#22c55e;border-radius:50%;margin-right:6px;"></span>Firestore \u2022 Jonli':g.innerHTML='<span style="display:inline-block;width:8px;height:8px;background:#eab308;border-radius:50%;margin-right:6px;"></span>Firestore \u2022 Bog\u2018lanmoqda'),await Q_(Ht),Zb=Y_(js,w=>{w.forEach(y=>{let k=Bt&&y.heldBy===Bt.uid;y.status==="reserved"?(ht.set(y.seatId,"taken"),De.delete(y.seatId),ba(y.seatId)):y.status==="held"?k?(ht.set(y.seatId,"selected"),De.add(y.seatId)):(ht.set(y.seatId,"held"),De.delete(y.seatId)):De.has(y.seatId)||ht.set(y.seatId,"free")}),qt(),Ot()}),So(ve,w=>{Bt=w,su&&(su(),su=null),w?su=ty(y=>{zf=y,Ta()}):zf=[],aA(w),Ta(),qt(),Ot()}),setInterval(()=>{De.size!==0&&Ot()},1e3),Ff(()=>{let w=0,y=0,k=0;for(let V=0;V<zs;V++)for(let q=0;q<sr;q++){let ee=ou(V,q),Be=ht.get(ee)||"free";Be==="free"?w++:Be==="taken"?y++:(Be==="held"||Be==="selected")&&k++}return{showInfo:{title:Ht.title,hall:Ht.hall,time:Ht.time,price:Ht.price},totalSeats:zs*sr,freeCount:w,takenCount:y,heldCount:k,selectedSeats:[...De].sort(),sectors:{A:Ia("A"),B:Ia("B"),C:Ia("C"),D:Ia("D")}}}),ly(),qt(),Ot(),Ne("Tizim tayyor \u2705 Firebase Firestore ulangan","success")}document.addEventListener("DOMContentLoaded",oA);})();
 /*! Bundled license information:
 
-@firebase/util/dist/postinstall.mjs:
-@firebase/firestore/dist/common-CE5hrKY-.esm.js:
-@firebase/firestore/dist/common-CE5hrKY-.esm.js:
-  (**
-   * @license
-   * Copyright 2025 Google LLC
-   *
-   * Licensed under the Apache License, Version 2.0 (the "License");
-   * you may not use this file except in compliance with the License.
-   * You may obtain a copy of the License at
-   *
-   *   http://www.apache.org/licenses/LICENSE-2.0
-   *
-   * Unless required by applicable law or agreed to in writing, software
-   * distributed under the License is distributed on an "AS IS" BASIS,
-   * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-   * See the License for the specific language governing permissions and
-   * limitations under the License.
-   *)
-
 @firebase/util/dist/index.esm.js:
 @firebase/util/dist/index.esm.js:
 @firebase/util/dist/index.esm.js:
@@ -1934,6 +1914,25 @@ re2js/build/index.js:
   (**
    * @license
    * Copyright 2020 Google LLC
+   *
+   * Licensed under the Apache License, Version 2.0 (the "License");
+   * you may not use this file except in compliance with the License.
+   * You may obtain a copy of the License at
+   *
+   *   http://www.apache.org/licenses/LICENSE-2.0
+   *
+   * Unless required by applicable law or agreed to in writing, software
+   * distributed under the License is distributed on an "AS IS" BASIS,
+   * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   * See the License for the specific language governing permissions and
+   * limitations under the License.
+   *)
+
+@firebase/firestore/dist/common-CE5hrKY-.esm.js:
+@firebase/firestore/dist/common-CE5hrKY-.esm.js:
+  (**
+   * @license
+   * Copyright 2025 Google LLC
    *
    * Licensed under the Apache License, Version 2.0 (the "License");
    * you may not use this file except in compliance with the License.

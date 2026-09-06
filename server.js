@@ -4,7 +4,7 @@ const fs = require('fs');
 const { GoogleGenAI } = require('@google/genai');
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 const HOST = '0.0.0.0';
 
 app.use(express.json());
@@ -639,7 +639,8 @@ app.post('/api/reservations', (req, res) => {
   }
 });
 
-// Serve static assets from current directory
+// Serve static assets from public and current directory
+app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.static(__dirname));
 
 // Primary route serves index.html
