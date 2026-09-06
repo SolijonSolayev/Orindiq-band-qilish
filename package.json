@@ -11,11 +11,11 @@
   },
   "dependencies": {
     "@google/genai": "^2.21.0",
+    "esbuild": "^0.28.2",
     "express": "^4.21.2",
     "firebase": "^12.18.0"
   },
   "devDependencies": {
-    "esbuild": "^0.28.2",
     "typescript": "^7.0.2"
   }
 }

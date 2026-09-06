@@ -1,5 +1,6 @@
 const express = require('express');
 const path = require('path');
+const fs = require('fs');
 const { GoogleGenAI } = require('@google/genai');
 
 const app = express();
@@ -7,6 +8,17 @@ const PORT = 3000;
 const HOST = '0.0.0.0';
 
 app.use(express.json());
+
+// Enable CORS for API requests (supports Vercel preview domains and production)
+app.use((req, res, next) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(200);
+  }
+  next();
+});
 
 // Lazy-initialized Gemini AI client
 let aiClient = null;
@@ -439,9 +451,23 @@ Transport turlari:
   }
 });
 
-// Persistent reservations store using JSON file on disk
+// Persistent reservations store using JSON file on disk (with Vercel/Serverless support)
 const SHOW_ID = 'show_2026_02_23_1930';
-const RESERVATIONS_FILE = path.join(__dirname, 'reservations_db.json');
+const isServerless = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
+const LOCAL_DB = path.join(__dirname, 'reservations_db.json');
+const RESERVATIONS_FILE = isServerless 
+  ? path.join('/tmp', 'reservations_db.json')
+  : LOCAL_DB;
+
+// If running in a serverless environment (e.g. Vercel) and /tmp does not have the db yet,
+// seed it from the bundled reservations_db.json
+if (isServerless && !fs.existsSync(RESERVATIONS_FILE) && fs.existsSync(LOCAL_DB)) {
+  try {
+    fs.copyFileSync(LOCAL_DB, RESERVATIONS_FILE);
+  } catch (seedErr) {
+    console.warn('[Database] Could not seed /tmp reservations db:', seedErr.message);
+  }
+}
 
 let confirmedReservations = [];
 const reservedSeatsMap = new Map();
@@ -621,12 +647,21 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// Fallback for any other route
+// Fallback for any other route (SPA router)
 app.get('*', (req, res) => {
+  if (req.path.startsWith('/api')) {
+    return res.status(404).json({ ok: false, error: 'Endpoint topilmadi' });
+  }
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-app.listen(PORT, HOST, () => {
-  console.log(`Server running at http://${HOST}:${PORT}`);
-});
+// Start local dev server if executed directly (e.g. node server.js)
+if (require.main === module) {
+  app.listen(PORT, HOST, () => {
+    console.log(`Server running at http://${HOST}:${PORT}`);
+  });
+}
+
+// Export for Vercel Serverless Functions
+module.exports = app;
 
